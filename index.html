@@ -231,7 +231,7 @@
   .div-zero { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--border-strong); transform: translateX(-50%); border-radius: 1px; }
   .div-bar { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
 
-  .delta-label { font-size: 13px; font-weight: 500; min-width: 62px; text-align: right; font-family: 'DM Mono', monospace; }
+  .delta-label { font-size: 13px; font-weight: 500; min-width: 92px; text-align: right; font-family: 'DM Mono', monospace; }
   .pos { color: var(--red); }
   .neg { color: var(--green); }
   .neu { color: var(--text-hint); }
@@ -346,7 +346,7 @@
     <div class="card-title">Map</div>
     <div class="legend">
       <div class="leg-item"><div style="width:10px;height:10px;background:#185FA5;transform:rotate(45deg);border-radius:2px;flex-shrink:0;"></div>Employees</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#2C2C2A;"></div>Current office</div>
+      <div class="leg-item"><div style="width:10px;height:10px;background:#3B6D11;border-radius:2px;flex-shrink:0;"></div>Current office</div>
       <div class="leg-item"><div class="leg-dot" style="background:#7B2E10;"></div>Relocation options</div>
     </div>
     <div id="map"></div>
@@ -447,16 +447,31 @@ function renderMetrics() {
 }
 
 function renderAgg() {
-  const maxA = Math.max(...nc.map(o => Math.abs(aggDelta(o.id))));
-  document.getElementById("agg-list").innerHTML = nc.map(o => {
+  const MAX_AGG = Math.max(...nc.map(o => Math.abs(aggDelta(o.id))));
+  const rows = nc.map(o => {
     const d = aggDelta(o.id);
-    const w = maxA === 0 ? 0 : Math.round(Math.abs(d) / maxA * 100);
-    return `<div class="agg-row">
-      <div><div class="agg-label"><strong>${o.label}</strong></div><div class="agg-sublabel">${o.area}</div></div>
-      <div class="bar-bg"><div class="bar-fill" style="width:${w}%;background:${dcol(d)};"></div></div>
-      <div class="agg-delta ${dcls(d)}">${fmtDA(d)}</div>
+    const pct = MAX_AGG === 0 ? 0 : Math.round(Math.abs(d) / MAX_AGG * 50);
+    const z = 50;
+    let bar = '';
+    if (d === 0) {
+      bar = `<div class="div-wrap"><div class="div-track"></div><div class="div-zero" style="left:${z}%;"></div></div>`;
+    } else if (d < 0) {
+      bar = `<div class="div-wrap"><div class="div-track"></div><div class="div-bar" style="left:${z - pct}%;width:${pct}%;background:#639922;"></div><div class="div-zero" style="left:${z}%;"></div></div>`;
+    } else {
+      bar = `<div class="div-wrap"><div class="div-track"></div><div class="div-bar" style="left:${z}%;width:${pct}%;background:#E24B4A;"></div><div class="div-zero" style="left:${z}%;"></div></div>`;
+    }
+    return `<div class="emp-row" style="gap:12px;">
+      <div class="emp-info" style="min-width:160px;"><div class="emp-name">${o.label}</div><div class="emp-sub">${o.area}</div></div>
+      ${bar}
+      <div class="delta-label ${dcls(d)}">${fmtDA(d)}</div>
     </div>`;
   }).join("");
+  const axis = `<div style="display:flex;align-items:center;gap:12px;margin-top:4px;">
+    <div style="min-width:160px;flex-shrink:0;"></div>
+    <div style="flex:1;"><div class="axis-hint"><span>+${MAX_AGG} min</span><span>0</span><span>−${MAX_AGG} min</span></div></div>
+    <div style="min-width:80px;"></div>
+  </div>`;
+  document.getElementById("agg-list").innerHTML = rows + axis;
 }
 
 function renderSelect() {
@@ -563,9 +578,9 @@ function renderInsights() {
 
 function initMap() {
   const map = L.map("map").setView([44.93, -93.37], 10);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 18,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
   }).addTo(map);
 
   function makeEmpIcon() {
@@ -576,6 +591,17 @@ function initMap() {
       iconSize: [s, s],
       iconAnchor: [s / 2, s / 2],
       popupAnchor: [0, -s / 2 - 6]
+    });
+  }
+
+  function makeCurOfficeIcon() {
+    const s = 16;
+    return L.divIcon({
+      html: `<div style="width:${s}px;height:${s}px;background:#3B6D11;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.25);border-radius:3px;"></div>`,
+      className: "",
+      iconSize: [s, s],
+      iconAnchor: [s / 2, s / 2],
+      popupAnchor: [0, -s / 2 - 4]
     });
   }
 
@@ -598,7 +624,7 @@ function initMap() {
   });
 
   const cc = coords.current;
-  L.marker([cc.lat, cc.lng], { icon: makeOfficeIcon("#2C2C2A") })
+  L.marker([cc.lat, cc.lng], { icon: makeCurOfficeIcon() })
     .addTo(map)
     .bindPopup(`<div class="popup-title">Current office</div><div class="popup-detail">708 N 1st St, Minneapolis</div>`);
 
